@@ -12,7 +12,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 }
 
 // Use read-only database
-require_once "db_read.php"; // provides $conn_read
+require_once "dbconnect.php"; // provides $conn_read
 $conn = $conn_read;
 
 if (!$conn) {
