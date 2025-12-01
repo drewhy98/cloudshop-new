@@ -1,7 +1,7 @@
 <?php
 $host = 'drewhdb.mysql.database.azure.com';
 $port = 3306;
-$dbname = 'myDatabase';
+$dbname = 'shopsphere';
 $username = 'cmet01';
 $password = 'Cardiff01';
 
