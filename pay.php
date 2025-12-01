@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "db_write.php"; // Use writable DB connection for inserting orders
+require_once "dbconnect.php"; // Use writable DB connection for inserting orders
 
 // Make sure user is logged in
 if (!isset($_SESSION['user_id'])) {
