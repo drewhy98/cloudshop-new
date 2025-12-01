@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "db_write.php"; // admin write access
+require_once "dbconnect.php"; // admin write access
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
