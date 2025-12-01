@@ -1,6 +1,6 @@
 <?php 
 session_start(); 
-require_once "dbconnect.php"; // read-only replica
+require_once "dbconnect.php";   // provides $mysqli
 ?>
 
 <!DOCTYPE html>
@@ -10,7 +10,6 @@ require_once "dbconnect.php"; // read-only replica
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ShopSphere - Bakery</title>
     <style>
-        /* Same CSS as display_meat.php */
         body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; background-color: #fafafa; color: #333; line-height: 1.6; }
         h1,h2,h3,h4{font-family:'Georgia',serif;}
         header{background:#fff; border-bottom:1px solid #e0e0e0; padding:15px 40px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;}
@@ -52,7 +51,7 @@ require_once "dbconnect.php"; // read-only replica
     </div>
 </header>
 
-<nav>    
+<nav>
     <a href="index.php">Home</a>
     <a href="display_meat.php">Meat</a>
     <a href="display_veg.php">Vegetables</a>
@@ -65,28 +64,33 @@ require_once "dbconnect.php"; // read-only replica
 <div class="products-grid">
 
 <?php
+// ---- MYSQL VERSION ---- //
 $sql = "SELECT product_id, name, price, image_url 
         FROM products 
         ORDER BY created_at DESC";
-$stmt = sqlsrv_query($conn_read, $sql);
 
-if($stmt === false){
-    echo "<p>Error: Could not retrieve products.</p>";
+$result = $mysqli->query($sql);
+
+if (!$result) {
+    echo "<p>Error retrieving products.</p>";
 } else {
-    $hasProducts = false;
-    while($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)):
-        $hasProducts = true;
-        $image = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : 'placeholder.png';
+    if ($result->num_rows === 0) {
+        echo "<p style='grid-column:1 / -1; text-align:center;'>No products found.</p>";
+    } else {
+        while ($row = $result->fetch_assoc()):
+            $image = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : 'placeholder.png';
 ?>
     <div class="product-card">
         <img src="<?= $image ?>" alt="<?= htmlspecialchars($row['name']); ?>">
         <h4><?= htmlspecialchars($row['name']); ?></h4>
-        <p>£<?= number_format($row['price'],2); ?></p>
+        <p>£<?= number_format($row['price'], 2); ?></p>
+
         <?php if(isset($_SESSION['user_name'])): ?>
             <form method="post" action="add_to_cart.php">
                 <input type="hidden" name="product_id" value="<?= $row['product_id']; ?>">
                 <button class="btn">Add to Cart</button>
             </form>
+
             <form method="post" action="add_to_wishlist.php">
                 <input type="hidden" name="product_id" value="<?= $row['product_id']; ?>">
                 <button class="btn">Add to Wishlist</button>
@@ -94,9 +98,7 @@ if($stmt === false){
         <?php endif; ?>
     </div>
 <?php
-    endwhile;
-    if(!$hasProducts){
-        echo "<p style='grid-column:1 / -1; text-align:center;'>No products found.</p>";
+        endwhile;
     }
 }
 ?>
@@ -108,8 +110,7 @@ if($stmt === false){
 </footer>
 
 <?php
-sqlsrv_free_stmt($stmt);
-sqlsrv_close($conn_read);
+$mysqli->close();
 ?>
 </body>
 </html>
