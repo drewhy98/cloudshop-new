@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "db_write.php"; // write connection for modifying cart
+require_once "dbconnect.php"; // write connection for modifying cart
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
