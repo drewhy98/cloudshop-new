@@ -3,7 +3,7 @@
 // ShopSphere - User Registration Processor
 // =====================================================
 
-require_once "db_write.php";   // <-- THIS replaces all server details
+require_once "dbconnect.php";   // <-- THIS replaces all server details
 // Provides: $conn_write
 
 // =====================================================
