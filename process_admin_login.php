@@ -2,7 +2,7 @@
 session_start();
 
 // Use read-only database connection for admin login
-require_once "db_read.php";  // provides $conn_read
+require_once "dbconnect.php";  // provides $conn_read
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
