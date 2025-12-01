@@ -6,7 +6,7 @@
 $con = mysqli_connect(
     "drewhdb.mysql.database.azure.com",  // Host
     "cmet01",                            // Username
-    "Cardiff1",                   // Password
+    "Cardiff01",                   // Password
     "shopsphere"                         // Database name
 );
 
