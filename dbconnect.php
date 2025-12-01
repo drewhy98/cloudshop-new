@@ -1,20 +1,22 @@
 <?php
-// ---------------------
-// Database Connection
-// ---------------------
+$host = 'drewhdb.mysql.database.azure.com';
+$port = 3306;
+$dbname = 'myDatabase';
+$username = 'cmet01';
+$password = 'Cardiff01';
 
-$con = mysqli_connect(
-    "drewhdb.mysql.database.azure.com",  // Host
-    "cmet01",                            // Username
-    "Cardiff01",                   // Password
-    "shopsphere"                         // Database name
-);
+$dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
 
-// Check connection
-if (mysqli_connect_errno()) {
-    die("Database connection failed: " . mysqli_connect_error());
+$options = [
+    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Throw exceptions on errors
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::MYSQL_ATTR_SSL_MODE => PDO::MYSQL_ATTR_SSL_MODE_REQUIRED, // SSL without local CA file
+];
+
+try {
+    $conn = new PDO($dsn, $username, $password, $options);
+    echo "Connected successfully to MySQL!";
+} catch (PDOException $e) {
+    die("Connection failed: " . $e->getMessage());
 }
-
-// Optional: Set UTF-8 encoding
-mysqli_set_charset($con, "utf8mb4");
 ?>
