@@ -4,7 +4,7 @@
 // =====================================================
 
 // Use WRITE database connection
-require_once "db_write.php";  // provides $conn_write
+require_once "dbconnect.php"; // <-- for all operations
 $conn = $conn_write;
 
 if (!$conn) {
