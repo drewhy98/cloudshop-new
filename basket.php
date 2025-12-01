@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "db_read.php"; // read-only replica for product info
+require_once "dbconnect.php"; // read-only replica for product info
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
