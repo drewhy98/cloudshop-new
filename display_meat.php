@@ -1,6 +1,6 @@
 <?php 
 session_start(); 
-require_once "db_read.php"; // <-- uses read-only replica
+require_once "dbconnect.php"; // <-- uses read-only replica
 ?>
 
 <!DOCTYPE html>
