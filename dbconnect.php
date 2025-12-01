@@ -5,18 +5,14 @@ $dbname = 'myDatabase';
 $username = 'cmet01';
 $password = 'Cardiff01';
 
-$dsn = "mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4";
+// Enable SSL mode
+$mysqli = mysqli_init();
+$mysqli->ssl_set(NULL, NULL, NULL, NULL, NULL); // Required to use SSL without CA file
+$mysqli->real_connect($host, $username, $password, $dbname, $port, NULL, MYSQLI_CLIENT_SSL);
 
-$options = [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, // Throw exceptions on errors
-    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    PDO::MYSQL_ATTR_SSL_MODE => PDO::MYSQL_ATTR_SSL_MODE_REQUIRED, // SSL without local CA file
-];
-
-try {
-    $conn = new PDO($dsn, $username, $password, $options);
-    echo "Connected successfully to MySQL!";
-} catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
+if ($mysqli->connect_errno) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
+
+echo "Connected successfully to MySQL!";
 ?>
