@@ -4,7 +4,7 @@
 // =====================================================
 
 // Use READ database for login
-require_once "db_read.php";   // provides: $conn_read
+require_once "dbconnect.php";   // provides: $conn_read
 
 // =====================================================
 // Handle login submission
