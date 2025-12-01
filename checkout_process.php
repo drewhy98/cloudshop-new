@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "db_write.php"; // writable DB
+require_once "dbconnect.php"; // writable DB
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
