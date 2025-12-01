@@ -14,5 +14,4 @@ if ($mysqli->connect_errno) {
     die("Connection failed: " . $mysqli->connect_error);
 }
 
-echo "Connected successfully to MySQL!";
 ?>
