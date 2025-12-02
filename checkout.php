@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php";
+require_once "dbconnect.php"; // read-only DB connection
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id = intval($_SESSION['user_id']);
 
 // Check if basket contains any items
 $sql = "
@@ -17,20 +17,20 @@ $sql = "
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
 ";
-$stmt = sqlsrv_query($conn_read, $sql, [$user_id]);
 
-$hasItems = false;
-while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-    $hasItems = true;
-    break;
-}
+$stmt = $conn_read->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+$hasItems = $result->num_rows > 0;
 
 if (!$hasItems) {
     die("<p>Your basket is empty. <a href='basket.php'>Return to basket</a></p>");
 }
 
-sqlsrv_free_stmt($stmt);
-sqlsrv_close($conn_read);
+$stmt->close();
+$conn_read->close();
 ?>
 
 <!DOCTYPE html>
