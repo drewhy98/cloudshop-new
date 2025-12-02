@@ -8,8 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
-
+$user_id = intval($_SESSION['user_id']);
 $error = "";
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -28,56 +27,68 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             JOIN products p ON c.product_id = p.product_id
             WHERE c.user_id = ?
         ";
-        $stmt = sqlsrv_query($conn_write, $sql_basket, [$user_id]);
 
-        if ($stmt === false) {
-            die("Failed to load basket: " . print_r(sqlsrv_errors(), true));
-        }
+        $stmt = $conn_write->prepare($sql_basket);
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         $items = [];
         $total_amount = 0;
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        while ($row = $result->fetch_assoc()) {
             $items[] = $row;
             $total_amount += $row['price'] * $row['quantity'];
         }
-        sqlsrv_free_stmt($stmt);
+        $stmt->close();
 
         if (count($items) === 0) {
             $error = "Your basket is empty.";
         } else {
 
-            // Insert order
-            $sql_order = "
-                INSERT INTO orders (user_id, total_amount, address, payment_method, status)
-                OUTPUT INSERTED.order_id
-                VALUES (?, ?, ?, ?, 'Pending');
-            ";
-            $params_order = [$user_id, $total_amount, $address, $payment_method];
-            $stmt_order = sqlsrv_query($conn_write, $sql_order, $params_order);
+            // Start transaction
+            $conn_write->begin_transaction();
 
-            if ($stmt_order === false) {
-                die("Order insert failed: " . print_r(sqlsrv_errors(), true));
-            }
+            try {
+                // Insert order
+                $sql_order = "
+                    INSERT INTO orders (user_id, total_amount, address, payment_method, status)
+                    VALUES (?, ?, ?, ?, 'Pending')
+                ";
+                $stmt_order = $conn_write->prepare($sql_order);
+                $stmt_order->bind_param("idss", $user_id, $total_amount, $address, $payment_method);
+                $stmt_order->execute();
+                $order_id = $stmt_order->insert_id;
+                $stmt_order->close();
 
-            $row_order = sqlsrv_fetch_array($stmt_order, SQLSRV_FETCH_ASSOC);
-            $order_id = $row_order['order_id'];
-
-            // Insert order items
-            foreach ($items as $item) {
+                // Insert order items
                 $sql_item = "
                     INSERT INTO order_items (order_id, product_id, quantity, price)
                     VALUES (?, ?, ?, ?)
                 ";
-                $params_item = [$order_id, $item['product_id'], $item['quantity'], $item['price']];
-                sqlsrv_query($conn_write, $sql_item, $params_item);
+                $stmt_item = $conn_write->prepare($sql_item);
+                foreach ($items as $item) {
+                    $stmt_item->bind_param("iiid", $order_id, $item['product_id'], $item['quantity'], $item['price']);
+                    $stmt_item->execute();
+                }
+                $stmt_item->close();
+
+                // Clear basket
+                $stmt_clear = $conn_write->prepare("DELETE FROM user_cart WHERE user_id = ?");
+                $stmt_clear->bind_param("i", $user_id);
+                $stmt_clear->execute();
+                $stmt_clear->close();
+
+                // Commit transaction
+                $conn_write->commit();
+
+                // Redirect to confirmation
+                header("Location: checkout_confirm.php?order_id=" . $order_id);
+                exit();
+
+            } catch (Exception $e) {
+                $conn_write->rollback();
+                $error = "Failed to process order: " . $e->getMessage();
             }
-
-            // Clear basket
-            sqlsrv_query($conn_write, "DELETE FROM user_cart WHERE user_id = ?", [$user_id]);
-
-            // Redirect to confirmation
-            header("Location: checkout_confirm.php?order_id=" . $order_id);
-            exit();
         }
     }
 }
@@ -127,6 +138,6 @@ button:hover { background:#244928; }
 
 <footer>&copy; 2025 ShopSphere | Fresh, Local & Healthy</footer>
 
-<?php sqlsrv_close($conn_write); ?>
+<?php $conn_write->close(); ?>
 </body>
 </html>
