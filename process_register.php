@@ -1,10 +1,9 @@
 <?php
 // =====================================================
-// ShopSphere - User Registration Processor
+// ShopSphere - User Registration Processor (MySQL version)
 // =====================================================
 
-require_once "dbconnect.php";   // <-- THIS replaces all server details
-// Provides: $conn_write
+require_once "dbconnect.php";   // provides $mysqli
 
 // =====================================================
 // Handle Form Submission
@@ -26,35 +25,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Use write database connection
-    $conn = $conn_write;
-
-    if (!$conn) {
+    if (!$mysqli) {
         header("Location: register.php?error=" . urlencode("Database connection failed."));
         exit();
     }
 
     // Check if email already exists
     $checkSql = "SELECT email FROM shopusers WHERE email = ?";
-    $checkStmt = sqlsrv_query($conn, $checkSql, [$email]);
+    $checkStmt = $mysqli->prepare($checkSql);
+    $checkStmt->bind_param("s", $email);
+    $checkStmt->execute();
+    $checkResult = $checkStmt->get_result();
 
-    if ($checkStmt && sqlsrv_fetch_array($checkStmt, SQLSRV_FETCH_ASSOC)) {
+    if ($checkResult->num_rows > 0) {
+        $checkStmt->close();
         header("Location: register.php?error=" . urlencode("This email is already registered."));
         exit();
     }
+    $checkStmt->close();
 
     // Hash password
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
     // Insert user into database
     $insertSql = "INSERT INTO shopusers (name, email, password) VALUES (?, ?, ?)";
-    $params = [$name, $email, $hashedPassword];
-    $stmt = sqlsrv_query($conn, $insertSql, $params);
+    $stmt = $mysqli->prepare($insertSql);
+    $stmt->bind_param("sss", $name, $email, $hashedPassword);
 
-    if ($stmt) {
+    if ($stmt->execute()) {
+        $stmt->close();
         header("Location: success.php");
         exit();
     } else {
+        $stmt->close();
         header("Location: register.php?error=" . urlencode("Registration failed."));
         exit();
     }
@@ -63,3 +66,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: register.php");
     exit();
 }
+?>
