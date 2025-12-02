@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->close();
     $mysqli->close();
 
-    header("Location: admin_display_products.php?msg=" . urlencode("Product added successfully."));
+    header("Location: admin_view_products.php?msg=" . urlencode("Product added successfully."));
     exit();
 
 } else {
