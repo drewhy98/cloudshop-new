@@ -1,8 +1,8 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // <-- for all operations
+require_once "dbconnect.php"; // Uses your new MySQLi connection
 
-// Make sure user is logged in
+// Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Make sure product_id is provided
+// Ensure product_id is provided
 if (!isset($_POST['product_id']) || empty($_POST['product_id'])) {
     die("Invalid request. No product specified.");
 }
@@ -23,40 +23,33 @@ $sql = "
     VALUES (?, ?)
 ";
 
-$params = [$user_id, $product_id];
+$stmt = $mysqli->prepare($sql);
 
-// Use try/catch to handle duplicate entries (UQ constraint)
-try {
-    $stmt = sqlsrv_query($conn_write, $sql, $params);
+if (!$stmt) {
+    die("Prepare failed: " . $mysqli->error);
+}
 
-    if ($stmt === false) {
-        $errors = sqlsrv_errors();
-        // Check for unique constraint violation (duplicate)
-        $duplicate = false;
-        foreach ($errors as $error) {
-            if (strpos($error['message'], 'UQ_User_Product') !== false) {
-                $duplicate = true;
-                break;
-            }
-        }
+$stmt->bind_param("ii", $user_id, $product_id);
 
-        if ($duplicate) {
-            $_SESSION['wishlist_message'] = "This product is already in your wishlist.";
-        } else {
-            $_SESSION['wishlist_message'] = "Error adding to wishlist.";
-        }
+// Attempt to execute (catch duplicate entry)
+if (!$stmt->execute()) {
+
+    // MySQL duplicate key error code = 1062
+    if ($stmt->errno === 1062) {
+        $_SESSION['wishlist_message'] = "This product is already in your wishlist.";
     } else {
-        $_SESSION['wishlist_message'] = "Product added to your wishlist!";
+        $_SESSION['wishlist_message'] = "Error adding to wishlist.";
     }
 
-    sqlsrv_free_stmt($stmt);
-    sqlsrv_close($conn_write);
-
-    // Redirect back to previous page (or wishlist page)
-    header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "wishlist.php"));
-    exit();
-
-} catch (Exception $e) {
-    die("Error: " . $e->getMessage());
+} else {
+    $_SESSION['wishlist_message'] = "Product added to your wishlist!";
 }
+
+$stmt->close();
+$mysqli->close();
+
+// Redirect back to the previous page or wishlist page
+header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "wishlist.php"));
+exit();
 ?>
+
