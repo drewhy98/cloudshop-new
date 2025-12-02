@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // read-only DB
+require_once "dbconnect.php"; // MySQLi connection variable: $mysqli
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -22,7 +22,11 @@ $sql_order = "
     WHERE order_id = ? AND user_id = ?
 ";
 
-$stmt_order = $conn_read->prepare($sql_order);
+$stmt_order = $mysqli->prepare($sql_order);
+if (!$stmt_order) {
+    die("Prepare failed: " . $mysqli->error);
+}
+
 $stmt_order->bind_param("ii", $order_id, $user_id);
 $stmt_order->execute();
 $result_order = $stmt_order->get_result();
@@ -42,7 +46,11 @@ $sql_items = "
     WHERE oi.order_id = ?
 ";
 
-$stmt_items = $conn_read->prepare($sql_items);
+$stmt_items = $mysqli->prepare($sql_items);
+if (!$stmt_items) {
+    die("Prepare failed: " . $mysqli->error);
+}
+
 $stmt_items->bind_param("i", $order_id);
 $stmt_items->execute();
 $result_items = $stmt_items->get_result();
@@ -52,7 +60,7 @@ while ($row = $result_items->fetch_assoc()) {
     $order_items[] = $row;
 }
 $stmt_items->close();
-$conn_read->close();
+$mysqli->close();
 ?>
 
 <!DOCTYPE html>
