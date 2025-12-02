@@ -8,29 +8,27 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$user_id  = $_SESSION['user_id'];
-$order_id = isset($_GET['order_id']) ? $_GET['order_id'] : 0;
+$user_id  = intval($_SESSION['user_id']);
+$order_id = isset($_GET['order_id']) ? intval($_GET['order_id']) : 0;
 
 if ($order_id <= 0) {
     die("No order specified.");
 }
 
-// Fetch order details with prepared statement
+// Fetch order details
 $sql_order = "
     SELECT order_id, total_amount, address, payment_method, status, created_at
     FROM orders
     WHERE order_id = ? AND user_id = ?
 ";
 
-$params = [$order_id, $user_id];
-$stmt_order = sqlsrv_query($conn_read, $sql_order, $params);
+$stmt_order = $conn_read->prepare($sql_order);
+$stmt_order->bind_param("ii", $order_id, $user_id);
+$stmt_order->execute();
+$result_order = $stmt_order->get_result();
 
-if ($stmt_order === false) {
-    die("Query failed: " . print_r(sqlsrv_errors(), true));
-}
-
-$order = sqlsrv_fetch_array($stmt_order, SQLSRV_FETCH_ASSOC);
-sqlsrv_free_stmt($stmt_order);
+$order = $result_order->fetch_assoc();
+$stmt_order->close();
 
 if (!$order) {
     die("Order not found.");
@@ -43,13 +41,18 @@ $sql_items = "
     JOIN products p ON oi.product_id = p.product_id
     WHERE oi.order_id = ?
 ";
-$stmt_items = sqlsrv_query($conn_read, $sql_items, [$order_id]);
+
+$stmt_items = $conn_read->prepare($sql_items);
+$stmt_items->bind_param("i", $order_id);
+$stmt_items->execute();
+$result_items = $stmt_items->get_result();
 
 $order_items = [];
-while ($row = sqlsrv_fetch_array($stmt_items, SQLSRV_FETCH_ASSOC)) {
+while ($row = $result_items->fetch_assoc()) {
     $order_items[] = $row;
 }
-sqlsrv_free_stmt($stmt_items);
+$stmt_items->close();
+$conn_read->close();
 ?>
 
 <!DOCTYPE html>
@@ -78,7 +81,7 @@ footer { background:#f2f5f1; padding:15px; text-align:center; }
 <p>Order ID: <strong><?= $order['order_id'] ?></strong></p>
 <p>Payment Method: <strong><?= htmlspecialchars($order['payment_method']) ?></strong></p>
 <p>Delivery Address: <strong><?= htmlspecialchars($order['address']) ?></strong></p>
-<p>Ordered At: <strong><?= $order['created_at'] instanceof DateTime ? $order['created_at']->format('Y-m-d H:i:s') : htmlspecialchars($order['created_at']) ?></strong></p>
+<p>Ordered At: <strong><?= htmlspecialchars($order['created_at']) ?></strong></p>
 <p>Status: <strong><?= htmlspecialchars($order['status']) ?></strong></p>
 
 <h3>Order Items</h3>
@@ -100,7 +103,7 @@ footer { background:#f2f5f1; padding:15px; text-align:center; }
         <tr>
             <td><?= htmlspecialchars($item['name']) ?></td>
             <td><?= number_format($item['price'], 2) ?></td>
-            <td><?= $item['quantity'] ?></td>
+            <td><?= intval($item['quantity']) ?></td>
             <td><?= number_format($subtotal, 2) ?></td>
         </tr>
         <?php endforeach; ?>
@@ -112,6 +115,5 @@ footer { background:#f2f5f1; padding:15px; text-align:center; }
 
 <footer>&copy; 2025 ShopSphere | Fresh, Local & Healthy</footer>
 
-<?php sqlsrv_close($conn_read); ?>
 </body>
 </html>
