@@ -16,7 +16,6 @@
       flex-direction: column;
     }
 
-    /* Header */
     .header {
       background-color: #ffffff;
       color: #2e5d34;
@@ -40,7 +39,6 @@
       margin-top: 5px;
     }
 
-    /* Form */
     .login-form {
       background: white;
       padding: 40px;
@@ -48,7 +46,7 @@
       box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
       width: 100%;
       max-width: 400px;
-      margin-top: 100px;
+      margin-top: 120px;
     }
 
     h2 {
@@ -119,6 +117,22 @@
     .links a:hover {
       text-decoration: underline;
     }
+
+    .demo-credentials {
+      background-color: #f2f5f1;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 5px;
+      text-align: center;
+      font-size: 0.95em;
+      color: #2e5d34;
+    }
+
+    .demo-credentials strong {
+      display: block;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -150,8 +164,15 @@
 
       <input type="submit" class="btn" value="Log In">
     </form>
-      <p><a href="index.php">Back to Home</a></p>
+
+    <div class="demo-credentials">
+      <p><strong>Demo Admin Login</strong></p>
+      <p>Email: <strong>admin@gmail.com</strong></p>
+      <p>Password: <strong>test</strong></p>
+      <p style="font-size:0.85em; color:red;">*This would not be included in the deployed app*</p>
     </div>
+
+    <p class="links"><a href="index.php">Back to Home</a></p>
   </div>
 
 </body>
