@@ -7,7 +7,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     exit();
 }
 
-// Use your dbconnect
+// Use MySQLi database
 require_once "dbconnect.php"; // provides $mysqli
 
 if (!$mysqli) {
@@ -16,15 +16,15 @@ if (!$mysqli) {
 
 // Get all registered users
 $sql  = "SELECT name, email, password, created_at FROM shopusers ORDER BY created_at DESC";
-$result = mysqli_query($mysqli, $sql);
+$result = $mysqli->query($sql);
 
 if (!$result) {
-    die("Query failed: " . mysqli_error($mysqli));
+    die("Query failed: " . $mysqli->error);
 }
 
 // Fetch all users
 $users = [];
-while ($row = mysqli_fetch_assoc($result)) {
+while ($row = $result->fetch_assoc()) {
     $users[] = $row;
 }
 ?>
@@ -35,7 +35,108 @@ while ($row = mysqli_fetch_assoc($result)) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin - Registered Users</title>
 <style>
-/* ... same CSS as before ... */
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    margin: 0;
+    background: #fafafa;
+    color: #333;
+}
+header {
+    background: #fff;
+    border-bottom: 1px solid #ddd;
+    padding: 15px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+header h1 {
+    color: #2e5d34;
+    font-family: 'Georgia', serif;
+    margin: 0;
+}
+.logout-btn {
+    padding: 6px 12px;
+    background: #2e5d34;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+}
+nav {
+    background: #f2f5f1;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+    padding: 12px 0;
+}
+nav a {
+    text-decoration: none;
+    color: #2e5d34;
+    font-weight: bold;
+}
+.container {
+    max-width: 900px;
+    margin: 30px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+}
+.user-count {
+    background: #e8f5e8;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    text-align: center;
+    font-weight: bold;
+}
+.all-users {
+    background: #f9f9f9;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 5px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.all-users h3 {
+    text-align: center;
+    margin-top: 0;
+    color: #333;
+}
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+.user-table th, .user-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+.user-table th {
+    background-color: #2e5d34;
+    color: white;
+}
+.user-table tr:hover {
+    background-color: #f5f5f5;
+}
+.password-hash {
+    font-family: monospace;
+    font-size: 10px;
+    color: #666;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.btn {
+    display: inline-block;
+    background-color: #2e5d34;
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 5px 0;
+}
 </style>
 </head>
 <body>
@@ -95,8 +196,9 @@ while ($row = mysqli_fetch_assoc($result)) {
 </div>
 
 <?php
-mysqli_free_result($result);
-mysqli_close($mysqli);
+$result->free();
+$mysqli->close();
 ?>
+
 </body>
 </html>
