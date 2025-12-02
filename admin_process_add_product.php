@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // admin write access (mysqli connection)
+require_once "dbconnect.php"; // admin write access ($mysqli)
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -21,10 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sql = "INSERT INTO products (name, price, category, created_at, image_url, stock)
             VALUES (?, ?, ?, NOW(), ?, ?)";
 
-    $stmt = $conn_write->prepare($sql);
+    $stmt = $mysqli->prepare($sql);
 
     if (!$stmt) {
-        die("Prepare failed: " . $conn_write->error);
+        die("Prepare failed: " . $mysqli->error);
     }
 
     $stmt->bind_param("sdssi", $name, $price, $category, $image_url, $stock);
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $stmt->close();
-    $conn_write->close();
+    $mysqli->close();
 
     header("Location: admin_display_products.php?msg=" . urlencode("Product added successfully."));
     exit();
@@ -44,4 +44,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: admin_add_product.php");
     exit();
 }
-?>
