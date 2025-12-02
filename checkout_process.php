@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // writable DB
+require_once "dbconnect.php"; // MySQLi connection variable: $mysqli
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -28,7 +28,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             WHERE c.user_id = ?
         ";
 
-        $stmt = $conn_write->prepare($sql_basket);
+        $stmt = $mysqli->prepare($sql_basket);
+        if (!$stmt) {
+            die("Prepare failed: " . $mysqli->error);
+        }
+
         $stmt->bind_param("i", $user_id);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -46,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
 
             // Start transaction
-            $conn_write->begin_transaction();
+            $mysqli->begin_transaction();
 
             try {
                 // Insert order
@@ -54,7 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO orders (user_id, total_amount, address, payment_method, status)
                     VALUES (?, ?, ?, ?, 'Pending')
                 ";
-                $stmt_order = $conn_write->prepare($sql_order);
+                $stmt_order = $mysqli->prepare($sql_order);
+                if (!$stmt_order) {
+                    throw new Exception("Prepare failed: " . $mysqli->error);
+                }
                 $stmt_order->bind_param("idss", $user_id, $total_amount, $address, $payment_method);
                 $stmt_order->execute();
                 $order_id = $stmt_order->insert_id;
@@ -65,7 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO order_items (order_id, product_id, quantity, price)
                     VALUES (?, ?, ?, ?)
                 ";
-                $stmt_item = $conn_write->prepare($sql_item);
+                $stmt_item = $mysqli->prepare($sql_item);
+                if (!$stmt_item) {
+                    throw new Exception("Prepare failed: " . $mysqli->error);
+                }
+
                 foreach ($items as $item) {
                     $stmt_item->bind_param("iiid", $order_id, $item['product_id'], $item['quantity'], $item['price']);
                     $stmt_item->execute();
@@ -73,20 +84,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt_item->close();
 
                 // Clear basket
-                $stmt_clear = $conn_write->prepare("DELETE FROM user_cart WHERE user_id = ?");
+                $stmt_clear = $mysqli->prepare("DELETE FROM user_cart WHERE user_id = ?");
+                if (!$stmt_clear) {
+                    throw new Exception("Prepare failed: " . $mysqli->error);
+                }
                 $stmt_clear->bind_param("i", $user_id);
                 $stmt_clear->execute();
                 $stmt_clear->close();
 
                 // Commit transaction
-                $conn_write->commit();
+                $mysqli->commit();
 
                 // Redirect to confirmation
                 header("Location: checkout_confirm.php?order_id=" . $order_id);
                 exit();
 
             } catch (Exception $e) {
-                $conn_write->rollback();
+                $mysqli->rollback();
                 $error = "Failed to process order: " . $e->getMessage();
             }
         }
@@ -138,6 +152,6 @@ button:hover { background:#244928; }
 
 <footer>&copy; 2025 ShopSphere | Fresh, Local & Healthy</footer>
 
-<?php $conn_write->close(); ?>
+<?php $mysqli->close(); ?>
 </body>
 </html>
