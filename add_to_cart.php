@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // <-- for all operations
+require_once "dbconnect.php"; // <-- uses your new MySQLi connection
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -10,7 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// Ensure product_id and quantity are provided - setting default to 1 
+// Ensure product_id and quantity are provided
 if (!isset($_POST['product_id']) || empty($_POST['product_id'])) {
     die("Invalid request. Product not specified.");
 }
@@ -23,58 +23,77 @@ if ($quantity < 1) {
     $quantity = 1;
 }
 
-$product_id = (int) $_POST['product_id'];
-$quantity = (int) $_POST['quantity'];
-
-if ($quantity < 1) {
-    $quantity = 1; // minimum quantity
-}
-
-// Check if product is already in the cart
+/* ------------------------------------------------------
+   CHECK IF PRODUCT ALREADY EXISTS IN CART
+------------------------------------------------------- */
 $sql_check = "
     SELECT cart_id, quantity
     FROM user_cart
     WHERE user_id = ? AND product_id = ?
 ";
-$params_check = [$user_id, $product_id];
-$stmt_check = sqlsrv_query($conn_write, $sql_check, $params_check);
 
-if ($stmt_check === false) {
-    die("Error checking cart: " . print_r(sqlsrv_errors(), true));
+$stmt_check = $mysqli->prepare($sql_check);
+if (!$stmt_check) {
+    die("Prepare failed: " . $mysqli->error);
 }
 
-$row = sqlsrv_fetch_array($stmt_check, SQLSRV_FETCH_ASSOC);
+$stmt_check->bind_param("ii", $user_id, $product_id);
+$stmt_check->execute();
+$result_check = $stmt_check->get_result();
 
+$row = $result_check->fetch_assoc();
+
+/* ------------------------------------------------------
+   UPDATE EXISTING CART ITEM
+------------------------------------------------------- */
 if ($row) {
-    // Product exists in cart, update quantity
     $new_quantity = $row['quantity'] + $quantity;
+
     $sql_update = "
         UPDATE user_cart
-        SET quantity = ?, added_at = GETDATE()
+        SET quantity = ?, added_at = NOW()
         WHERE cart_id = ?
     ";
-    $params_update = [$new_quantity, $row['cart_id']];
-    $stmt_update = sqlsrv_query($conn_write, $sql_update, $params_update);
 
-    if ($stmt_update === false) {
-        die("Error updating cart: " . print_r(sqlsrv_errors(), true));
+    $stmt_update = $mysqli->prepare($sql_update);
+    if (!$stmt_update) {
+        die("Prepare failed: " . $mysqli->error);
     }
+
+    $stmt_update->bind_param("ii", $new_quantity, $row['cart_id']);
+    
+    if (!$stmt_update->execute()) {
+        die("Error updating cart: " . $stmt_update->error);
+    }
+
+    $stmt_update->close();
+
 } else {
-    // Insert new product into cart
-    $sql_insert = "
-        INSERT INTO user_cart (user_id, product_id, quantity)
-        VALUES (?, ?, ?)
-    ";
-    $params_insert = [$user_id, $product_id, $quantity];
-    $stmt_insert = sqlsrv_query($conn_write, $sql_insert, $params_insert);
 
-    if ($stmt_insert === false) {
-        die("Error adding to cart: " . print_r(sqlsrv_errors(), true));
+    /* ------------------------------------------------------
+       INSERT NEW CART ITEM
+    ------------------------------------------------------- */
+    $sql_insert = "
+        INSERT INTO user_cart (user_id, product_id, quantity, added_at)
+        VALUES (?, ?, ?, NOW())
+    ";
+
+    $stmt_insert = $mysqli->prepare($sql_insert);
+    if (!$stmt_insert) {
+        die("Prepare failed: " . $mysqli->error);
     }
+
+    $stmt_insert->bind_param("iii", $user_id, $product_id, $quantity);
+
+    if (!$stmt_insert->execute()) {
+        die("Error adding to cart: " . $stmt_insert->error);
+    }
+
+    $stmt_insert->close();
 }
 
-sqlsrv_free_stmt($stmt_check);
-sqlsrv_close($conn_write);
+$stmt_check->close();
+$mysqli->close();
 
 // Redirect back to previous page
 $_SESSION['cart_message'] = "Product added to your cart!";
