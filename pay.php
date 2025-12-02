@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // Use writable DB connection for inserting orders
+require_once "dbconnect.php"; // $mysqli writable DB
 
 // Make sure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -19,55 +19,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $address = trim($_POST['address']);
 
     if (!empty($address)) {
-        //  Calculate total from basket
+        // Calculate total from basket
         $sql_basket = "
             SELECT c.product_id, c.quantity, p.price, p.name
             FROM user_cart c
             JOIN products p ON c.product_id = p.product_id
             WHERE c.user_id = ?
         ";
-        $params = [$user_id];
-        $stmt = sqlsrv_query($conn_write, $sql_basket, $params);
-
-        if ($stmt === false) {
-            die("Failed to get basket items: " . print_r(sqlsrv_errors(), true));
-        }
+        $stmt = $mysqli->prepare($sql_basket);
+        $stmt->bind_param("i", $user_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
         $items = [];
         $total_amount = 0;
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        while ($row = $result->fetch_assoc()) {
             $items[] = $row;
             $total_amount += $row['price'] * $row['quantity'];
         }
-        sqlsrv_free_stmt($stmt);
+        $stmt->close();
 
         if (count($items) > 0) {
             // Insert order
             $sql_order = "INSERT INTO orders (user_id, total_amount, address) VALUES (?, ?, ?)";
-            $params_order = [$user_id, $total_amount, $address];
-            $stmt_order = sqlsrv_query($conn_write, $sql_order, $params_order);
-
-            if ($stmt_order === false) {
-                die("Failed to create order: " . print_r(sqlsrv_errors(), true));
-            }
+            $stmt_order = $mysqli->prepare($sql_order);
+            $stmt_order->bind_param("ids", $user_id, $total_amount, $address);
+            $stmt_order->execute();
 
             // Get inserted order_id
-            $sql_id = "SELECT SCOPE_IDENTITY() AS order_id";
-            $stmt_id = sqlsrv_query($conn_write, $sql_id);
-            $row_id = sqlsrv_fetch_array($stmt_id, SQLSRV_FETCH_ASSOC);
-            $order_id = $row_id['order_id'];
-            sqlsrv_free_stmt($stmt_id);
+            $order_id = $mysqli->insert_id;
+            $stmt_order->close();
 
             // Insert each item into order_items
+            $sql_item = "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)";
+            $stmt_item = $mysqli->prepare($sql_item);
             foreach ($items as $item) {
-                $sql_item = "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)";
-                $params_item = [$order_id, $item['product_id'], $item['quantity'], $item['price']];
-                sqlsrv_query($conn_write, $sql_item, $params_item);
+                $stmt_item->bind_param("iiid", $order_id, $item['product_id'], $item['quantity'], $item['price']);
+                $stmt_item->execute();
             }
+            $stmt_item->close();
 
-            //  Clear user's basket
+            // Clear user's basket
             $sql_clear = "DELETE FROM user_cart WHERE user_id = ?";
-            sqlsrv_query($conn_write, $sql_clear, [$user_id]);
+            $stmt_clear = $mysqli->prepare($sql_clear);
+            $stmt_clear->bind_param("i", $user_id);
+            $stmt_clear->execute();
+            $stmt_clear->close();
 
             $order_items = $items;
             $order_submitted = true;
@@ -158,6 +155,6 @@ th { background:#2e5d34; color:white; }
     &copy; 2025 ShopSphere | Fresh, Local & Healthy
 </footer>
 
-<?php sqlsrv_close($conn_write); ?>
+<?php $mysqli->close(); ?>
 </body>
 </html>
