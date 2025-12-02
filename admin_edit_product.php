@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // admin needs write access
+require_once "dbconnect.php"; // MySQLi connection: $mysqli
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -16,16 +16,31 @@ if (!isset($_GET['id'])) {
 
 $product_id = intval($_GET['id']);
 
-// Fetch current product details
-$sql = "SELECT product_id, name, price, category, image_url, stock
-        FROM products
+// Fetch current product details (MySQLi version)
+$sql = "SELECT product_id, name, price, category, image_url, stock 
+        FROM products 
         WHERE product_id = ?";
-$stmt = sqlsrv_query($conn_write, $sql, [$product_id]);
 
-if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) === null) {
-    die("Product not found: " . print_r(sqlsrv_errors(), true));
+$stmt = $mysqli->prepare($sql);
+
+if (!$stmt) {
+    die("Prepare failed: " . $mysqli->error);
 }
+
+$stmt->bind_param("i", $product_id);
+$stmt->execute();
+
+$result = $stmt->get_result();
+
+if ($result->num_rows === 0) {
+    die("Product not found.");
+}
+
+$product = $result->fetch_assoc();
+
+$stmt->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,10 +85,6 @@ if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)
             text-decoration: none;
         }
 
-        .auth-links a:hover {
-            text-decoration: underline;
-        }
-
         .logout-btn {
             background-color: #2e5d34;
             color: white;
@@ -86,31 +97,6 @@ if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)
 
         .logout-btn:hover {
             background-color: #244928;
-        }
-
-        .search-bar {
-            display: flex;
-            align-items: center;
-            flex-grow: 1;
-            justify-content: center;
-            margin: 10px 0;
-        }
-
-        .search-bar input {
-            width: 60%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px 0 0 4px;
-            outline: none;
-        }
-
-        .search-bar button {
-            background-color: #2e5d34;
-            border: none;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
         }
 
         nav {
@@ -133,8 +119,6 @@ if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)
         nav a:hover {
             border-bottom: 2px solid #2e5d34;
         }
-
-        /* ---- PAGE CONTENT ---- */
 
         .container {
             max-width: 700px;
@@ -200,11 +184,6 @@ if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)
 <header>
     <h1>ShopSphere Admin</h1>
 
-    <form class="search-bar" method="get" action="#">
-        <input type="text" name="search" placeholder="Search Stock...">
-        <button type="submit">Search</button>
-    </form>
-
     <div class="auth-links">
         <?php if (isset($_SESSION['admin_name'])): ?>
             <span>Welcome, <?= htmlspecialchars($_SESSION['admin_name']); ?></span>
@@ -222,7 +201,6 @@ if ($stmt === false || ($product = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)
 <nav>
     <a href="admin_view_products.php">Manage Products</a>
     <a href="admin_view_orders.php">Manage Orders</a>
-
 </nav>
 
 <div class="container">
