@@ -1,8 +1,6 @@
 <?php
 session_start();
-
-// Use read-only database connection for admin login
-require_once "dbconnect.php";  // provides $conn_read
+require_once "dbconnect.php";  // provides $mysqli
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -15,23 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    $conn = $conn_read;
-
-    if (!$conn) {
+    if (!$mysqli) {
         header("Location: admin_login.php?error=" . urlencode("Database connection failed."));
         exit();
     }
 
     // Fetch admin by email
-    $sql  = "SELECT id, name, email, password FROM adminusers WHERE email = ?";
-    $stmt = sqlsrv_query($conn, $sql, [$email]);
-
-    if ($stmt === false) {
-        header("Location: admin_login.php?error=" . urlencode("Database query failed."));
-        exit();
-    }
-
-    $admin = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $sql = "SELECT id, name, email, password FROM adminusers WHERE email = ?";
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $admin = $result->fetch_assoc();
+    $stmt->close();
 
     if ($admin) {
         if (password_verify($password, $admin['password'])) {
