@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // Admin needs view access (MySQL)
+require_once "dbconnect.php"; // MySQLi connection variable: $mysqli
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -14,10 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_id'], $_POST['s
     $status = trim($_POST['status']);
 
     $update_sql = "UPDATE orders SET status = ? WHERE order_id = ?";
-    $stmt = $conn_write->prepare($update_sql);
+    $stmt = $mysqli->prepare($update_sql);
 
     if (!$stmt) {
-        die("Prepare failed: " . $conn_write->error);
+        die("Prepare failed: " . $mysqli->error);
     }
 
     $stmt->bind_param("si", $status, $order_id);
@@ -39,7 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['order_id'], $_POST['s
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin - Manage Orders</title>
-
 <style>
 body { font-family:'Helvetica Neue',Arial; background:#fafafa; margin:0; color:#333; }
 header { background:white; padding:15px 40px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #ddd; }
@@ -92,10 +91,10 @@ $sql_orders = "
     ORDER BY o.created_at DESC
 ";
 
-$result = $conn_write->query($sql_orders);
+$result = $mysqli->query($sql_orders);
 
 if (!$result) {
-    die("Failed to retrieve orders: " . $conn_write->error);
+    die("Failed to retrieve orders: " . $mysqli->error);
 }
 ?>
 
@@ -138,9 +137,7 @@ if (!$result) {
             </form>
         </td>
 
-        <td>
-            <?= htmlspecialchars($order['created_at']) ?>
-        </td>
+        <td><?= htmlspecialchars($order['created_at']) ?></td>
     </tr>
 <?php endwhile; ?>
 
@@ -149,7 +146,7 @@ if (!$result) {
 
 <?php
 $result->free();
-$conn_write->close();
+$mysqli->close();
 ?>
 
 </div>
