@@ -1,6 +1,6 @@
 <?php 
 session_start(); 
-require_once "dbconnect.php";// admin needs write permission
+require_once "dbconnect.php"; // admin needs write permission (MySQL)
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
@@ -19,16 +19,14 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
     <style>
         body { font-family:'Helvetica Neue',Arial; margin:0; background:#fafafa; color:#333; }
 
-        /* Header */
-        header { background:white; padding:15px 40px; border-bottom:1px solid #ddd; 
+        header { background:white; padding:15px 40px; border-bottom:1px solid #ddd;
                  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; }
         header h1 { color:#2e5d34; font-family:'Georgia'; margin:0; }
 
-        .logout-btn { padding:6px 12px; background:#2e5d34; border:none; 
+        .logout-btn { padding:6px 12px; background:#2e5d34; border:none;
                       border-radius:4px; color:white; cursor:pointer; }
 
-        /* Navigation */
-        nav { background:#f2f5f1; padding:12px 30px; 
+        nav { background:#f2f5f1; padding:12px 30px;
               display:flex; justify-content:center; gap:30px; flex-wrap:wrap; }
         nav a { text-decoration:none; color:#2e5d34; font-weight:bold; }
 
@@ -131,39 +129,37 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
 <div class="products-grid">
 
 <?php
-$sql = "SELECT product_id, name, price, image_url, stock
+$sql = "SELECT product_id, name, price, image_url, stock 
         FROM products 
         ORDER BY created_at DESC";
 
-$stmt = sqlsrv_query($conn_write, $sql);
+$result = $conn_write->query($sql);
 
-if ($stmt === false) {
+if (!$result) {
     echo "<p>Error: Could not load products.</p>";
 } else {
-    $hasProducts = false;
-
-    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)):
-        $hasProducts = true;
-        $img = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : "placeholder.png";
+    if ($result->num_rows === 0) {
+        echo "<p style='grid-column:1/-1;text-align:center;'>No products found.</p>";
+    } else {
+        while ($row = $result->fetch_assoc()):
+            $img = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : "placeholder.png";
 ?>
 <div class="product-card">
-    
-    <!-- EDIT ICON -->
+
     <a class="edit-icon" href="admin_edit_product.php?id=<?= $row['product_id'] ?>">✏️</a>
 
     <img src="<?= $img ?>" alt="<?= htmlspecialchars($row['name']); ?>">
     <h4><?= htmlspecialchars($row['name']); ?></h4>
-    <p>£<?= number_format($row['price'], 2); ?></p>
+    <p>£<?= number_format((float)$row['price'], 2); ?></p>
     <p>Stock: <?= intval($row['stock']); ?></p>
 </div>
 
 <?php
-    endwhile;
-
-    if (!$hasProducts) {
-        echo "<p style='grid-column:1/-1;text-align:center;'>No products found.</p>";
+        endwhile;
     }
 }
+
+$conn_write->close();
 ?>
 
 </div>
@@ -171,11 +167,6 @@ if ($stmt === false) {
 <footer>
     &copy; <?= date("Y") ?> ShopSphere Admin
 </footer>
-
-<?php
-sqlsrv_free_stmt($stmt);
-sqlsrv_close($conn_write);
-?>
 
 </body>
 </html>
