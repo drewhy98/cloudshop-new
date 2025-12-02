@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // read-only replica for product info
+require_once "dbconnect.php"; // read-only replica for product info (MySQL)
 
 // Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id = intval($_SESSION['user_id']);
 
 // Query cart items
 $sql = "
@@ -17,19 +17,22 @@ $sql = "
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
 ";
-$params = [$user_id];
-$stmt = sqlsrv_query($conn_read, $sql, $params);
+
+$stmt = $conn_read->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
 
 $total = 0;
 $cartItems = [];
 
-if ($stmt !== false) {
-    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $row['subtotal'] = $row['price'] * $row['quantity'];
-        $total += $row['subtotal'];
-        $cartItems[] = $row;
-    }
+while ($row = $result->fetch_assoc()) {
+    $row['subtotal'] = $row['price'] * $row['quantity'];
+    $total += $row['subtotal'];
+    $cartItems[] = $row;
 }
+
+$stmt->close();
 ?>
 
 <!DOCTYPE html>
@@ -56,7 +59,7 @@ footer { margin-top:50px; background:#f2f5f1; padding:15px; text-align:center; c
 
 <?php include "header_nav.php"; ?> <!-- Include header/nav here, no nested forms -->
 
-<!-- Total Cost & Pay Now outside header -->
+<!-- Total Cost & Pay Now -->
 <div class="total-pay">
     <h2>Total Cost: £<?= number_format($total, 2); ?></h2>
 
@@ -79,11 +82,11 @@ if (empty($cartItems)) {
         <img src="<?= $image ?>" alt="<?= htmlspecialchars($row['name']); ?>">
         <h4><?= htmlspecialchars($row['name']); ?></h4>
         <p>Price: £<?= number_format($row['price'], 2); ?></p>
-        <p>Quantity: <?= $row['quantity']; ?></p>
+        <p>Quantity: <?= intval($row['quantity']); ?></p>
         <p>Subtotal: £<?= number_format($row['subtotal'], 2); ?></p>
 
         <form method="post" action="remove_from_basket.php">
-            <input type="hidden" name="cart_id" value="<?= $row['cart_id']; ?>">
+            <input type="hidden" name="cart_id" value="<?= intval($row['cart_id']); ?>">
             <button class="btn">Remove</button>
         </form>
     </div>
@@ -98,8 +101,7 @@ if (empty($cartItems)) {
 </footer>
 
 <?php
-sqlsrv_free_stmt($stmt);
-sqlsrv_close($conn_read);
+$conn_read->close();
 ?>
 
 </body>
