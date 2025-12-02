@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once "dbconnect.php"; // <-- for all operations
+require_once "dbconnect.php"; // <-- MySQLi connection ($mysqli)
 
 // Ensure admin is logged in
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
