@@ -1,6 +1,6 @@
 <?php 
 session_start(); 
-require_once "dbconnect.php"; // read-only replica
+require_once "dbconnect.php"; // $mysqli
 ?>
 
 <!DOCTYPE html>
@@ -10,7 +10,7 @@ require_once "dbconnect.php"; // read-only replica
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ShopSphere - Bakery</title>
 <style>
-/* Same CSS as original */
+/* Same CSS as your vegetables page */
 body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; background-color: #fafafa; color: #333; line-height: 1.6; }
 h1,h2,h3,h4{font-family:'Georgia',serif;}
 header{background:#fff; border-bottom:1px solid #e0e0e0; padding:15px 40px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;}
@@ -65,25 +65,26 @@ footer{margin-top:50px;background:#f2f5f1;padding:15px;text-align:center;color:#
 <div class="products-grid">
 
 <?php
-$sql = "SELECT product_id, name, price, image_url FROM products WHERE LOWER(category) = 'bakery' ORDER BY created_at DESC";
-$stmt = $conn_read->prepare($sql);
+$sql = "SELECT product_id, name, price, image_url 
+        FROM products 
+        WHERE LOWER(category) = 'bakery'
+        ORDER BY created_at DESC";
 
-if(!$stmt){
-    echo "<p>Error: Could not prepare query.</p>";
+$result = mysqli_query($mysqli, $sql);
+
+if(!$result){
+    echo "<p>Error: Could not retrieve products.</p>";
+} elseif(mysqli_num_rows($result) === 0){
+    echo "<p style='grid-column:1 / -1; text-align:center;'>No bakery products found.</p>";
 } else {
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if($result->num_rows === 0){
-        echo "<p style='grid-column:1 / -1; text-align:center;'>No bakery products found.</p>";
-    } else {
-        while($row = $result->fetch_assoc()):
-            $image = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : 'placeholder.png';
+    while($row = mysqli_fetch_assoc($result)):
+        $image = !empty($row['image_url']) ? htmlspecialchars($row['image_url']) : 'placeholder.png';
 ?>
     <div class="product-card">
         <img src="<?= $image ?>" alt="<?= htmlspecialchars($row['name']); ?>">
         <h4><?= htmlspecialchars($row['name']); ?></h4>
         <p>£<?= number_format($row['price'],2); ?></p>
+
         <?php if(isset($_SESSION['user_name'])): ?>
             <form method="post" action="add_to_cart.php">
                 <input type="hidden" name="product_id" value="<?= $row['product_id']; ?>">
@@ -96,11 +97,11 @@ if(!$stmt){
         <?php endif; ?>
     </div>
 <?php
-        endwhile;
-    }
-    $stmt->close();
+    endwhile;
 }
-$conn_read->close();
+
+mysqli_free_result($result);
+mysqli_close($mysqli);
 ?>
 
 </div>
