@@ -1,10 +1,10 @@
 <?php
 // =====================================================
-// ShopSphere - User Login Processor
+// ShopSphere - User Login Processor (MySQL version)
 // =====================================================
 
-// Use READ database for login
-require_once "dbconnect.php";   // provides: $conn_read
+session_start();
+require_once "dbconnect.php";   // provides: $mysqli
 
 // =====================================================
 // Handle login submission
@@ -20,44 +20,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Use read-only connection
-    $conn = $conn_read;
-
-    if (!$conn) {
+    if (!$mysqli) {
         header("Location: login.php?error=" . urlencode("Database connection failed."));
         exit();
     }
 
-    // Fetch user record
+    // Fetch user record using prepared statement
     $sql = "SELECT id, name, email, password FROM shopusers WHERE email = ?";
-    $stmt = sqlsrv_query($conn, $sql, [$email]);
-
-    if ($stmt === false) {
-        header("Location: login.php?error=" . urlencode("Database query failed."));
-        exit();
-    }
-
-    $user = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $stmt = $mysqli->prepare($sql);
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
+    $stmt->close();
 
     if ($user) {
-
         // Verify password hash
         if (password_verify($password, $user['password'])) {
-
-            session_start();
-
             $_SESSION['user_id']    = $user['id'];
             $_SESSION['user_name']  = $user['name'];
             $_SESSION['user_email'] = $user['email'];
 
             header("Location: index.php");
             exit();
-
         } else {
             header("Location: login.php?error=" . urlencode("Incorrect password."));
             exit();
         }
-
     } else {
         header("Location: login.php?error=" . urlencode("No account found with that email."));
         exit();
