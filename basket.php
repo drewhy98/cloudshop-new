@@ -18,7 +18,7 @@ $sql = "
     WHERE c.user_id = ?
 ";
 
-$stmt = $conn_read->prepare($sql);
+$stmt = $mysqli->prepare($sql);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -57,7 +57,7 @@ footer { margin-top:50px; background:#f2f5f1; padding:15px; text-align:center; c
 </head>
 <body>
 
-<?php include "header_nav.php"; ?> <!-- Include header/nav here, no nested forms -->
+<?php include "header_nav.php"; ?> <!-- Make sure this path is correct -->
 
 <!-- Total Cost & Pay Now -->
 <div class="total-pay">
@@ -101,7 +101,7 @@ if (empty($cartItems)) {
 </footer>
 
 <?php
-$conn_read->close();
+$mysqli->close();
 ?>
 
 </body>
