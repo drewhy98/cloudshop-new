@@ -3,13 +3,46 @@ import azure.functions as func
 import json
 import mysql.connector
 import bcrypt
+import os
 
+# -------------------------------------------------------
+#   PRELOAD DATABASE SETTINGS (reduces cold starts)
+# -------------------------------------------------------
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
+}
+
+db_connection = None
+
+
+def get_db_connection():
+    """
+    Maintain a global MySQL connection for better performance.
+    """
+    global db_connection
+
+    try:
+        if db_connection is None or not db_connection.is_connected():
+            db_connection = mysql.connector.connect(
+                **DB_CONFIG,
+                ssl_disabled=False  # Azure MySQL requires SSL
+            )
+        return db_connection
+    except Exception as e:
+        logging.error(f"Failed to connect to DB: {e}")
+        raise
+
+
+# -------------------------------------------------------
+#   MAIN LOGIN FUNCTION
+# -------------------------------------------------------
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Processing login request.")
 
-    # ---------------------------
-    # Parse JSON body
-    # ---------------------------
+    # Parse JSON input
     try:
         body = req.get_json()
     except:
@@ -19,8 +52,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json"
         )
 
-    email = body.get('email')
-    password = body.get('password')
+    email = body.get("email")
+    password = body.get("password")
 
     if not email or not password:
         return func.HttpResponse(
@@ -30,20 +63,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        # ---------------------------
-        # DIRECT DATABASE CONNECTION
-        # ---------------------------
-        db = mysql.connector.connect(
-            host="drewhdb.mysql.database.azure.com",
-            user="cmet01",
-            password="Cardiff01",
-            database="shopsphere",
-            ssl_disabled=False   # Azure MySQL uses SSL by default
-        )
-
+        # Connect to MySQL (reused global connection)
+        db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
-        # Look up user
+        # Look up user by email
         cursor.execute(
             "SELECT id, name, email, password FROM shopusers WHERE email = %s",
             (email,)
@@ -57,7 +81,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # Verify password
+        # Verify password with bcrypt
         if not bcrypt.checkpw(password.encode(), user["password"].encode()):
             return func.HttpResponse(
                 json.dumps({"error": "Incorrect password."}),
@@ -65,7 +89,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # SUCCESS
+        # LOGIN SUCCESS
         return func.HttpResponse(
             json.dumps({
                 "message": "Success",
