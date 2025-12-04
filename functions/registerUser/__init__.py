@@ -5,23 +5,59 @@ import mysql.connector
 import bcrypt
 import os
 
+# -------------------------------------------------------
+#   PRELOAD DATABASE SETTINGS (reduces cold starts)
+# -------------------------------------------------------
+DB_CONFIG = {
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
+}
+
+db_connection = None
+
+
+def get_db_connection():
+    """
+    Maintain a global MySQL connection to reduce cold starts
+    and avoid reconnecting for every incoming HTTP request.
+    """
+    global db_connection
+
+    try:
+        if db_connection is None or not db_connection.is_connected():
+            db_connection = mysql.connector.connect(
+                **DB_CONFIG,
+                ssl_disabled=False  # Azure MySQL requires SSL
+            )
+        return db_connection
+    except Exception as e:
+        logging.error(f"Failed to connect to DB: {e}")
+        raise
+
+
+# -------------------------------------------------------
+#   MAIN REGISTRATION FUNCTION
+# -------------------------------------------------------
 def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Processing registration request.")
 
+    # Parse incoming JSON
     try:
         body = req.get_json()
-    except:
+    except Exception:
         return func.HttpResponse(
             json.dumps({"error": "Invalid JSON body."}),
             status_code=400,
             mimetype="application/json"
         )
 
-    name = body.get('name')
-    email = body.get('email')
-    password = body.get('password')
+    name = body.get("name")
+    email = body.get("email")
+    password = body.get("password")
 
-    # Validate inputs
+    # Validate input
     if not name or not email or not password:
         return func.HttpResponse(
             json.dumps({"error": "Please fill in all fields."}),
@@ -30,21 +66,17 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        # -------------------------------
-        #   Connect to Azure MySQL
-        # -------------------------------
-        db = mysql.connector.connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            ssl_disabled=False     # Azure MySQL requires SSL
-        )
-
+        # -------------------------------------------------------
+        #   Connect to MySQL (reused connection)
+        # -------------------------------------------------------
+        db = get_db_connection()
         cursor = db.cursor()
 
-        # Check if email exists
-        cursor.execute("SELECT email FROM shopusers WHERE email = %s", (email,))
+        # Check if email already exists
+        cursor.execute(
+            "SELECT email FROM shopusers WHERE email = %s",
+            (email,)
+        )
         result = cursor.fetchone()
 
         if result:
@@ -55,12 +87,12 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         # Hash password
-        hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+        hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-        # Insert new user
+        # Insert user into MySQL
         cursor.execute(
             "INSERT INTO shopusers (name, email, password) VALUES (%s, %s, %s)",
-            (name, email, hashed_password)
+            (name, email, hashed_pw)
         )
         db.commit()
 
@@ -71,7 +103,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as e:
-        logging.error("Database or server error: " + str(e))
+        logging.error(f"Server error: {e}")
         return func.HttpResponse(
             json.dumps({"error": "Server error."}),
             status_code=500,
