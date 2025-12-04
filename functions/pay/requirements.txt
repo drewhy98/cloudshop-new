@@ -1,0 +1,4 @@
+azure-functions
+mysql-connector-python
+bcrypt
+cryptography
