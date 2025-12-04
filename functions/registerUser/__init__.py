@@ -30,12 +30,15 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        # Connect to MySQL
+        # -------------------------------
+        #   Connect to Azure MySQL
+        # -------------------------------
         db = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME")
+            database=os.getenv("DB_NAME"),
+            ssl_disabled=False     # Azure MySQL requires SSL
         )
 
         cursor = db.cursor()
@@ -68,7 +71,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     except Exception as e:
-        logging.error(str(e))
+        logging.error("Database or server error: " + str(e))
         return func.HttpResponse(
             json.dumps({"error": "Server error."}),
             status_code=500,
