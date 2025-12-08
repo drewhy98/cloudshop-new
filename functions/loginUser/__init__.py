@@ -5,8 +5,10 @@ import mysql.connector
 import bcrypt
 import os
 
+app = func.FunctionApp()
+
 # -------------------------------------------------------
-#   PRELOAD DATABASE SETTINGS (reduces cold starts)
+#   PRELOAD DATABASE SETTINGS
 # -------------------------------------------------------
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
@@ -17,32 +19,30 @@ DB_CONFIG = {
 
 db_connection = None
 
-
 def get_db_connection():
     """
-    Maintain a global MySQL connection for better performance.
+    Maintain a global MySQL connection for performance.
     """
     global db_connection
 
-    try:
-        if db_connection is None or not db_connection.is_connected():
-            db_connection = mysql.connector.connect(
-                **DB_CONFIG,
-                ssl_disabled=False  # Azure MySQL requires SSL
-            )
-        return db_connection
-    except Exception as e:
-        logging.error(f"Failed to connect to DB: {e}")
-        raise
+    if db_connection is None or not db_connection.is_connected():
+        db_connection = mysql.connector.connect(
+            **DB_CONFIG,
+            ssl_disabled=False
+        )
+
+    return db_connection
 
 
 # -------------------------------------------------------
-#   MAIN LOGIN FUNCTION
+#   LOGIN FUNCTION (Python v2 decorator model)
 # -------------------------------------------------------
-def main(req: func.HttpRequest) -> func.HttpResponse:
+@app.function_name(name="Login")
+@app.route(route="login", methods=["POST"], auth_level=func.AuthLevel.ANONYMOUS)
+def login(req: func.HttpRequest) -> func.HttpResponse:
     logging.info("Processing login request.")
 
-    # Parse JSON input
+    # Parse JSON body
     try:
         body = req.get_json()
     except:
@@ -63,11 +63,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     try:
-        # Connect to MySQL (reused global connection)
         db = get_db_connection()
         cursor = db.cursor(dictionary=True)
 
-        # Look up user by email
         cursor.execute(
             "SELECT id, name, email, password FROM shopusers WHERE email = %s",
             (email,)
@@ -81,7 +79,6 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # Verify password with bcrypt
         if not bcrypt.checkpw(password.encode(), user["password"].encode()):
             return func.HttpResponse(
                 json.dumps({"error": "Incorrect password."}),
@@ -89,7 +86,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # LOGIN SUCCESS
+        # Success response
         return func.HttpResponse(
             json.dumps({
                 "message": "Success",
